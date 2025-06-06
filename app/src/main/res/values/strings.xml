@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">MyAndroidApp</string>
+
+    <!-- MainActivity -->
+    <string name="view_tenants">View Tenants</string>
+    <string name="add_tenant">Add Tenant</string>
+
+    <!-- AddTenantActivity -->
+    <string name="add_new_tenant">Add New Tenant</string>
+    <string name="tenant_name_hint">Tenant Name</string>
+    <string name="apartment_number_hint">Apartment No.</string>
+    <string name="phone_number_hint">Phone Number</string>
+    <string name="email_hint">Email (Optional)</string>
+    <string name="notes_hint">Notes (Optional)</string>
+    <string name="save_tenant">Save Tenant</string>
+
+    <!-- ViewTenantsActivity -->
+    <string name="search_hint">Search Tenants</string>
+    <string name="view_all_tenants">View All Tenants</string>
+
+    <!-- list_item_tenant -->
+    <string name="tenant_name_label">Name:</string>
+    <string name="apartment_number_label">Apt:</string>
+    <string name="phone_number_label">Phone:</string>
+
+    <!-- Activity Titles -->
+    <string name="title_activity_add_tenant">Add New Tenant</string>
+    <string name="title_activity_view_tenants">View Tenants</string>
+
+</resources>
