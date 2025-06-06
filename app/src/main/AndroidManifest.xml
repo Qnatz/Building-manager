@@ -29,6 +29,14 @@
             android:name=".ViewTenantsActivity"
             android:label="@string/title_activity_view_tenants">
         </activity>
+        <activity
+            android:name=".RecordPaymentActivity"
+            android:label="@string/title_activity_record_payment">
+        </activity>
+        <activity
+            android:name=".TenantDetailActivity"
+            android:label="@string/title_activity_tenant_detail">
+        </activity>
     </application>
 
 </manifest>

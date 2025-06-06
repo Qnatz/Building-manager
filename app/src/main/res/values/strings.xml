@@ -26,5 +26,44 @@
     <!-- Activity Titles -->
     <string name="title_activity_add_tenant">Add New Tenant</string>
     <string name="title_activity_view_tenants">View Tenants</string>
+    <string name="title_activity_record_payment">Record Payment</string>
+
+    <!-- RecordPaymentActivity -->
+    <string name="select_tenant_prompt">Select Tenant</string>
+    <string name="payment_date_hint">Payment Date (YYYY-MM-DD)</string>
+    <string name="payment_method_hint">Payment Method (e.g., Cash, Bank)</string>
+    <string name="amount_paid_hint">Amount Paid</string>
+    <string name="select_invoice_prompt">Select Invoice (Optional)</string>
+    <string name="save_payment">Save Payment</string>
+    <string name="record_payment_button_text">Record Payment</string>
+    <string name="error_saving_payment">Error saving payment.</string>
+    <string name="payment_saved_successfully">Payment saved successfully.</string>
+    <string name="tenant_not_selected">Tenant not selected.</string>
+    <string name="amount_not_valid">Amount paid must be a valid number.</string>
+    <string name="date_not_valid">Payment date cannot be empty.</string>
+
+    <!-- Invoice Generation Placeholder -->
+    <string name="generate_invoice_button_text">Generate Invoice</string>
+    <string name="generate_invoices_button_text">Generate Invoices (Bulk)</string>
+    <string name="invoice_generation_placeholder">Invoice generation for %1$s placeholder.</string>
+    <string name="bulk_invoice_generation_placeholder">Bulk invoice generation placeholder.</string>
+    <string name="invoices_generated_toast">%1$d invoices generated.</string>
+    <string name="error_generating_invoices">Error generating invoices.</string>
+    <string name="no_tenants_found">No tenants found to generate invoices for.</string>
+
+
+    <!-- TenantDetailActivity -->
+    <string name="title_activity_tenant_detail">Tenant Details</string>
+    <string name="tenant_details_label">Tenant Details</string>
+    <string name="invoices_label">Invoices</string>
+    <string name="payments_label">Payments</string>
+    <string name="add_payment_for_tenant_button">Add Payment for this Tenant</string>
+    <string name="due_date_label">Due:</string>
+    <string name="amount_due_label">Amount:</string>
+    <string name="status_label">Status:</string>
+    <string name="payment_method_label">Method:</string>
+    <string name="amount_paid_label">Paid:</string>
+    <string name="invoice_id_label">Invoice ID:</string>
+
 
 </resources>

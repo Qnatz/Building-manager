@@ -22,6 +22,22 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/add_tenant"
+        android:textSize="20sp"
+        android:layout_marginBottom="24dp"/>
+
+    <Button
+        android:id="@+id/btn_record_payment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/record_payment_button_text"
+        android:textSize="20sp"
+        android:layout_marginBottom="24dp"/>
+
+    <Button
+        android:id="@+id/btn_generate_invoices_bulk"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/generate_invoices_button_text"
         android:textSize="20sp"/>
 
 </LinearLayout>
