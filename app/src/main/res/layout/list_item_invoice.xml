@@ -72,4 +72,21 @@
             android:layout_height="wrap_content"
             android:textSize="16sp" />
     </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Remaining:"
+            android:textStyle="bold"
+            android:layout_marginEnd="4dp"/>
+        <TextView
+            android:id="@+id/textViewInvoiceRemainingAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp" />
+    </LinearLayout>
 </LinearLayout>

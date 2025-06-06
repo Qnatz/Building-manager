@@ -1,6 +1,8 @@
 package com.example.myandroidapp.data
 
+import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.example.myandroidapp.data.TenantContract.TenantEntry
@@ -11,7 +13,7 @@ class TenantDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         const val DATABASE_NAME = "TenantManagement.db"
-        const val DATABASE_VERSION = 2 // Incremented version
+        const val DATABASE_VERSION = 3 // Incremented version
 
         private const val SQL_CREATE_TENANTS =
             "CREATE TABLE ${TenantEntry.TABLE_NAME} (" +
@@ -29,6 +31,7 @@ class TenantDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     "${InvoiceEntry.COLUMN_NAME_DUE_DATE} TEXT NOT NULL," +
                     "${InvoiceEntry.COLUMN_NAME_AMOUNT_DUE} REAL NOT NULL," +
                     "${InvoiceEntry.COLUMN_NAME_STATUS} TEXT NOT NULL," +
+                    "${InvoiceEntry.COLUMN_NAME_REMAINING_AMOUNT} REAL NOT NULL," + // Added new column
                     "FOREIGN KEY(${InvoiceEntry.COLUMN_NAME_TENANT_ID}) REFERENCES ${TenantEntry.TABLE_NAME}(${TenantEntry._ID}));"
 
         private const val SQL_CREATE_PAYMENTS =
@@ -54,30 +57,27 @@ class TenantDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // This database is only a cache for online data, so its upgrade policy is
-        // to simply to discard the data and start over
-        db.execSQL(SQL_DELETE_PAYMENTS)    // Drop payments first due to FK on invoices
-        db.execSQL(SQL_DELETE_INVOICES)   // Drop invoices next due to FK on tenants
-        db.execSQL(SQL_DELETE_TENANTS)    // Drop tenants last
+        // Simple drop/recreate for development. For production, use ALTER TABLE.
+        // For this upgrade, we'd check if oldVersion < 3 and newVersion >= 3
+        // and then execute ALTER TABLE for the invoices table if it exists.
+        // But for now:
+        db.execSQL(SQL_DELETE_PAYMENTS)
+        db.execSQL(SQL_DELETE_INVOICES)
+        db.execSQL(SQL_DELETE_TENANTS)
         onCreate(db)
-        // If you had a more complex schema evolution, you would implement
-        // specific migration steps here, checking oldVersion and newVersion.
     }
 
     override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        onUpgrade(db, oldVersion, newVersion) // Simple downgrade is same as upgrade for now
+        onUpgrade(db, oldVersion, newVersion)
     }
 
     fun getAllTenantsCursor(): Cursor {
         val db = this.readableDatabase
         return db.query(
             TenantEntry.TABLE_NAME,
-            arrayOf(TenantEntry._ID, TenantEntry.COLUMN_NAME_NAME), // Projections
-            null, // Selection
-            null, // Selection args
-            null, // Group by
-            null, // Having
-            TenantEntry.COLUMN_NAME_NAME + " ASC" // Order by
+            arrayOf(TenantEntry._ID, TenantEntry.COLUMN_NAME_NAME),
+            null, null, null, null,
+            "${TenantEntry.COLUMN_NAME_NAME} ASC"
         )
     }
 
@@ -86,50 +86,47 @@ class TenantDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val selection = "${InvoiceEntry.COLUMN_NAME_TENANT_ID} = ?"
         val selectionArgs = arrayOf(tenantId.toString())
         return db.query(
-            InvoiceEntry.TABLE_NAME,
-            null, // Projection - null means all columns
-            selection,
-            selectionArgs,
-            null, // Group by
-            null, // Having
-            InvoiceEntry.COLUMN_NAME_INVOICE_DATE + " DESC" // Order by
+            InvoiceEntry.TABLE_NAME, null, selection, selectionArgs, null, null,
+            "${InvoiceEntry.COLUMN_NAME_INVOICE_DATE} DESC"
         )
     }
+
+    fun getUnpaidInvoicesForTenantCursor(tenantId: Long): Cursor {
+        val db = this.readableDatabase
+        val selection = "${InvoiceEntry.COLUMN_NAME_TENANT_ID} = ? AND (${InvoiceEntry.COLUMN_NAME_STATUS} = ? OR ${InvoiceEntry.COLUMN_NAME_STATUS} = ?)"
+        val selectionArgs = arrayOf(tenantId.toString(), "unpaid", "partially_paid")
+        return db.query(
+            InvoiceEntry.TABLE_NAME,
+            arrayOf(InvoiceEntry._ID, InvoiceEntry.COLUMN_NAME_INVOICE_DATE, InvoiceEntry.COLUMN_NAME_REMAINING_AMOUNT), // Include relevant fields for display
+            selection,
+            selectionArgs,
+            null, null,
+            "${InvoiceEntry.COLUMN_NAME_INVOICE_DATE} ASC"
+        )
+    }
+
 
     fun getPaymentsForTenantCursor(tenantId: Long): Cursor {
         val db = this.readableDatabase
         val selection = "${PaymentEntry.COLUMN_NAME_TENANT_ID} = ?"
         val selectionArgs = arrayOf(tenantId.toString())
         return db.query(
-            PaymentEntry.TABLE_NAME,
-            null, // Projection - null means all columns
-            selection,
-            selectionArgs,
-            null, // Group by
-            null, // Having
-            PaymentEntry.COLUMN_NAME_PAYMENT_DATE + " DESC" // Order by
+            PaymentEntry.TABLE_NAME, null, selection, selectionArgs, null, null,
+            "${PaymentEntry.COLUMN_NAME_PAYMENT_DATE} DESC"
         )
     }
 
-    // Basic method to generate monthly invoices.
-    // NOTE: Date handling is very simplified (no specific month check, just existence).
-    // A more robust solution would involve proper date parsing and comparison for the current month.
     fun generateMonthlyInvoices(invoiceDate: String, dueDate: String, amount: Double): Int {
         val db = this.writableDatabase
         var invoicesGenerated = 0
-        val tenantCursor = getAllTenantsCursor() // Reuse existing method to get all tenants
+        val tenantCursor = getAllTenantsCursor()
 
         if (tenantCursor.moveToFirst()) {
             do {
                 val tenantId = tenantCursor.getLong(tenantCursor.getColumnIndexOrThrow(TenantEntry._ID))
-
-                // Simplified check: Does an invoice exist for this tenant already?
-                // This doesn't check for a specific month, just any invoice.
-                // For a real app, you'd check for an invoice for the *current billing period*.
                 val invoiceCheckCursor = db.query(
-                    InvoiceEntry.TABLE_NAME,
-                    arrayOf(InvoiceEntry._ID),
-                    "${InvoiceEntry.COLUMN_NAME_TENANT_ID} = ? AND ${InvoiceEntry.COLUMN_NAME_INVOICE_DATE} = ?", // Simple check for this exact invoice date to avoid exact duplicates
+                    InvoiceEntry.TABLE_NAME, arrayOf(InvoiceEntry._ID),
+                    "${InvoiceEntry.COLUMN_NAME_TENANT_ID} = ? AND ${InvoiceEntry.COLUMN_NAME_INVOICE_DATE} = ?",
                     arrayOf(tenantId.toString(), invoiceDate),
                     null, null, null, "1"
                 )
@@ -137,10 +134,11 @@ class TenantDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 if (invoiceCheckCursor.count == 0) {
                     val values = ContentValues().apply {
                         put(InvoiceEntry.COLUMN_NAME_TENANT_ID, tenantId)
-                        put(InvoiceEntry.COLUMN_NAME_INVOICE_DATE, invoiceDate) // Use provided invoiceDate
+                        put(InvoiceEntry.COLUMN_NAME_INVOICE_DATE, invoiceDate)
                         put(InvoiceEntry.COLUMN_NAME_DUE_DATE, dueDate)
                         put(InvoiceEntry.COLUMN_NAME_AMOUNT_DUE, amount)
-                        put(InvoiceEntry.COLUMN_NAME_STATUS, "unpaid")
+                        put(InvoiceEntry.COLUMN_NAME_REMAINING_AMOUNT, amount) // Initialize remaining_amount
+                        put(InvoiceEntry.COLUMN_NAME_STATUS, "unpaid")          // Initialize status
                     }
                     db.insert(InvoiceEntry.TABLE_NAME, null, values)
                     invoicesGenerated++
@@ -150,5 +148,40 @@ class TenantDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         tenantCursor.close()
         return invoicesGenerated
+    }
+
+    fun getTenantById(tenantId: Long): Cursor {
+        val db = this.readableDatabase
+        return db.query(
+            TenantEntry.TABLE_NAME, null, "${TenantEntry._ID} = ?", arrayOf(tenantId.toString()),
+            null, null, null, "1"
+        )
+    }
+
+    fun getInvoiceById(invoiceId: Long): Cursor {
+        val db = this.readableDatabase
+        return db.query(
+            InvoiceEntry.TABLE_NAME, null, "${InvoiceEntry._ID} = ?", arrayOf(invoiceId.toString()),
+            null, null, null, "1"
+        )
+    }
+
+    fun getPaymentById(paymentId: Long): Cursor {
+        val db = this.readableDatabase
+        return db.query(
+            PaymentEntry.TABLE_NAME, null, "${PaymentEntry._ID} = ?", arrayOf(paymentId.toString()),
+            null, null, null, "1"
+        )
+    }
+
+    fun updateInvoiceStatusAndRemainingAmount(invoiceId: Long, newStatus: String, newRemainingAmount: Double): Int {
+        val db = this.writableDatabase
+        val values = ContentValues().apply {
+            put(InvoiceEntry.COLUMN_NAME_STATUS, newStatus)
+            put(InvoiceEntry.COLUMN_NAME_REMAINING_AMOUNT, newRemainingAmount)
+        }
+        val selection = "${InvoiceEntry._ID} = ?"
+        val selectionArgs = arrayOf(invoiceId.toString())
+        return db.update(InvoiceEntry.TABLE_NAME, values, selection, selectionArgs)
     }
 }

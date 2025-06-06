@@ -5,10 +5,11 @@ import android.database.Cursor
 import android.os.Bundle
 import android.widget.Button
 import android.widget.ListView
-import android.widget.SimpleCursorAdapter
+import android.widget.SimpleCursorAdapter // Keep for invoices
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.example.myandroidapp.adapter.PaymentCursorAdapter // Import the custom adapter
 import com.example.myandroidapp.data.TenantContract
 import com.example.myandroidapp.data.TenantDbHelper
 
@@ -28,7 +29,7 @@ class TenantDetailActivity : AppCompatActivity() {
 
 
     private var invoiceAdapter: SimpleCursorAdapter? = null
-    private var paymentAdapter: SimpleCursorAdapter? = null
+    private var paymentAdapter: PaymentCursorAdapter? = null // Changed to custom adapter
 
     companion object {
         const val EXTRA_TENANT_ID = "com.example.myandroidapp.TENANT_ID"
@@ -98,13 +99,15 @@ class TenantDetailActivity : AppCompatActivity() {
             TenantContract.InvoiceEntry._ID,
             TenantContract.InvoiceEntry.COLUMN_NAME_DUE_DATE,
             TenantContract.InvoiceEntry.COLUMN_NAME_AMOUNT_DUE,
-            TenantContract.InvoiceEntry.COLUMN_NAME_STATUS
+            TenantContract.InvoiceEntry.COLUMN_NAME_STATUS,
+            TenantContract.InvoiceEntry.COLUMN_NAME_REMAINING_AMOUNT // Added
         )
         val toInvoiceViews = intArrayOf(
             R.id.textViewInvoiceId,
             R.id.textViewInvoiceDueDate,
             R.id.textViewInvoiceAmountDue,
-            R.id.textViewInvoiceStatus
+            R.id.textViewInvoiceStatus,
+            R.id.textViewInvoiceRemainingAmount // Added
         )
         invoiceAdapter?.changeCursor(null) // Close old cursor
         invoiceAdapter = SimpleCursorAdapter(this, R.layout.list_item_invoice, invoiceCursor, fromInvoiceColumns, toInvoiceViews, 0)
@@ -126,7 +129,7 @@ class TenantDetailActivity : AppCompatActivity() {
             R.id.textViewPaymentInvoiceId
         )
         paymentAdapter?.changeCursor(null) // Close old cursor
-        paymentAdapter = SimpleCursorAdapter(this, R.layout.list_item_payment, paymentCursor, fromPaymentColumns, toPaymentViews, 0)
+        paymentAdapter = PaymentCursorAdapter(this, paymentCursor, dbHelper) // Use custom adapter
         listViewTenantPayments.adapter = paymentAdapter
     }
 
@@ -138,8 +141,8 @@ class TenantDetailActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        invoiceAdapter?.cursor?.close()
-        paymentAdapter?.cursor?.close()
+        invoiceAdapter?.changeCursor(null)
+        paymentAdapter?.changeCursor(null)
         dbHelper.close()
         super.onDestroy()
     }

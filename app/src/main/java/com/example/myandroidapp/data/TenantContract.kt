@@ -23,6 +23,7 @@ object TenantContract {
         const val COLUMN_NAME_DUE_DATE = "due_date"         // TEXT as ISO8601 string or INTEGER for timestamp
         const val COLUMN_NAME_AMOUNT_DUE = "amount_due"     // REAL for currency
         const val COLUMN_NAME_STATUS = "status"             // TEXT e.g., "unpaid", "partially_paid", "paid"
+        const val COLUMN_NAME_REMAINING_AMOUNT = "remaining_amount" // REAL
     }
 
     object PaymentEntry : BaseColumns {

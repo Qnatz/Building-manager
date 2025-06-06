@@ -27,6 +27,7 @@ class RecordPaymentActivity : AppCompatActivity() {
 
     private lateinit var dbHelper: TenantDbHelper
     private var selectedTenantId: Long = -1
+    private var selectedInvoiceId: Long? = null // To store the ID of the selected invoice
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,11 +68,13 @@ class RecordPaymentActivity : AppCompatActivity() {
 
         tenantSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                selectedTenantId = id // id here is the _ID from the cursor
-                // Optionally load invoices for this tenant into invoiceSpinner here
+                selectedTenantId = id
+                loadInvoiceSpinner(selectedTenantId) // Load invoices for the selected tenant
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {
                 selectedTenantId = -1
+                invoiceSpinner.adapter = null // Clear invoice spinner
+                selectedInvoiceId = null
             }
         }
     }
@@ -119,7 +122,9 @@ class RecordPaymentActivity : AppCompatActivity() {
             put(TenantContract.PaymentEntry.COLUMN_NAME_PAYMENT_DATE, paymentDate)
             put(TenantContract.PaymentEntry.COLUMN_NAME_PAYMENT_METHOD, paymentMethod)
             put(TenantContract.PaymentEntry.COLUMN_NAME_AMOUNT_PAID, amountPaid)
-            // put(TenantContract.PaymentEntry.COLUMN_NAME_INVOICE_ID, selectedInvoiceId) // If invoiceSpinner is implemented
+            selectedInvoiceId?.let { // Add invoice_id if an invoice was selected
+                put(TenantContract.PaymentEntry.COLUMN_NAME_INVOICE_ID, it)
+            }
         }
 
         val newRowId = db.insert(TenantContract.PaymentEntry.TABLE_NAME, null, values)
@@ -128,7 +133,65 @@ class RecordPaymentActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.error_saving_payment), Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(this, getString(R.string.payment_saved_successfully), Toast.LENGTH_SHORT).show()
+            // Update invoice if one was selected
+            selectedInvoiceId?.let { invId ->
+                amountPaid?.let { paidAmount -> // Ensure amountPaid is not null
+                    updateInvoiceAfterPayment(invId, paidAmount)
+                }
+            }
             finish()
+        }
+    }
+
+    private fun loadInvoiceSpinner(tenantId: Long) {
+        if (tenantId == -1L) {
+            invoiceSpinner.adapter = null
+            selectedInvoiceId = null
+            return
+        }
+        val invoiceCursor = dbHelper.getUnpaidInvoicesForTenantCursor(tenantId)
+
+        val fromColumns = arrayOf(TenantContract.InvoiceEntry.COLUMN_NAME_INVOICE_DATE, TenantContract.InvoiceEntry.COLUMN_NAME_REMAINING_AMOUNT) // What to show in spinner
+        val toViews = intArrayOf(android.R.id.text1, android.R.id.text2) // Default layout for two lines
+
+        // Custom adapter might be better for formatting, but SimpleCursorAdapter can work
+        // You might need a custom ViewBinder for SimpleCursorAdapter to format date and amount.
+        val invoiceAdapter = SimpleCursorAdapter(
+            this,
+            android.R.layout.simple_spinner_item, // Or android.R.layout.simple_list_item_2 for two lines
+            invoiceCursor,
+            fromColumns,
+            toViews,
+            0
+        )
+        invoiceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        invoiceSpinner.adapter = invoiceAdapter
+        invoiceSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedInvoiceId = id
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                selectedInvoiceId = null
+            }
+        }
+    }
+
+    private fun updateInvoiceAfterPayment(invoiceId: Long, paymentAmount: Double) {
+        val invoiceCursor = dbHelper.getInvoiceById(invoiceId)
+        if (invoiceCursor.moveToFirst()) {
+            val currentAmountDue = invoiceCursor.getDouble(invoiceCursor.getColumnIndexOrThrow(TenantContract.InvoiceEntry.COLUMN_NAME_AMOUNT_DUE))
+            val currentRemainingAmount = invoiceCursor.getDouble(invoiceCursor.getColumnIndexOrThrow(TenantContract.InvoiceEntry.COLUMN_NAME_REMAINING_AMOUNT))
+            invoiceCursor.close()
+
+            val newRemainingAmount = currentRemainingAmount - paymentAmount
+            val newStatus = when {
+                newRemainingAmount <= 0 -> "paid"
+                newRemainingAmount < currentAmountDue -> "partially_paid"
+                else -> "unpaid" // Should ideally not happen if payment doesn't exceed remaining
+            }
+            dbHelper.updateInvoiceStatusAndRemainingAmount(invoiceId, newStatus, newRemainingAmount)
+        } else {
+            invoiceCursor.close()
         }
     }
 
